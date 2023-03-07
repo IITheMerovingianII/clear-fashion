@@ -453,7 +453,7 @@ var reasonable = false
 for (var product of COTELE_PARIS)
 {
     var counter = 0
-    if (product.price <= 96)
+    if (product.price <= 100)
     {
         counter += 1
     }

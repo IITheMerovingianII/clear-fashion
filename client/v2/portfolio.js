@@ -21,11 +21,24 @@ Search for available brands list
 let currentProducts = [];
 let currentPagination = {};
 
+// dates
+var current_time = new Date()
+var fortnight_before = new Date(Date.now() - 12096e5)
+
 // instantiate the selectors
 const selectShow = document.querySelector('#show-select');
 const selectPage = document.querySelector('#page-select');
 const sectionProducts = document.querySelector('#products');
 const spanNbProducts = document.querySelector('#nbProducts');
+const selectBrand = document.querySelector('#brand-select');
+const reasonablePrice = document.querySelector('#filters > span:nth-of-type(1)');
+const recentlyReleased = document.querySelector('#filters > span:nth-of-type(2)');
+const sortProduct = document.querySelector('#sort-select');
+const spanNbNewProducts = document.querySelector('#nbNewProducts');
+const spanP90 = document.querySelector('#p90');
+const spanP95 = document.querySelector('#p95');
+const spanP50 = document.querySelector('#p50');
+const spanLastDate = document.querySelector('#lastDate');
 
 /**
  * Set global value
@@ -60,6 +73,25 @@ const fetchProducts = async (page = 1, size = 12) => {
     console.error(error);
     return {currentProducts, currentPagination};
   }
+};
+
+const fetchBrands = async (page = 1, size = 12, brand='ALL') => {
+    try {
+        const response = await fetch(
+            `https://clear-fashion-api.vercel.app?page=${page}&size=${size}&brand=${brand}`
+        );
+        const body = await response.json();
+
+        if (body.success !== true) {
+            console.error(body);
+            return { currentProducts, currentPagination };
+        }
+
+        return body.data;
+    } catch (error) {
+        console.error(error);
+        return { currentProducts, currentPagination };
+    }
 };
 
 /**
@@ -102,20 +134,69 @@ const renderPagination = pagination => {
   selectPage.selectedIndex = currentPage - 1;
 };
 
+const renderBrands = async () => {
+    try {
+        const response = await fetch(
+            `https://clear-fashion-api.vercel.app/brands`
+        );
+        const body = await response.json();
+        if (body.success !== true) {
+            console.error(body);
+        }
+        const { result: brands } = body.data;
+        const options = `<option value="">select brand</option>`+ `<option value = "">All brands</option>` + brands.map(brand => `<option value="${brand}">${brand}</option>`).join('');
+        selectBrand.innerHTML = options;
+        selectBrand.selectedIndex = 0
+    } catch (error) {
+        console.error(error);
+    }
+};
+
 /**
  * Render page selector
  * @param  {Object} pagination
  */
 const renderIndicators = pagination => {
-  const {count} = pagination;
+    const { count } = pagination;
 
-  spanNbProducts.innerHTML = count;
+    //Number of recently released products
+    const new_count = (Object.values(currentProducts).filter(currentProducts => new Date(currentProducts.released) >= fortnight_before)).length;//This functionality works (it is tested). However, it displays '0' because no product was released 2 weeks ago from now.
+
+    //P90 value
+    const prices = Object.values(currentProducts).map(x => x.price);
+    prices.sort((a, b) => a - b);
+    const index_p90 = Math.floor(prices.length * 0.9);
+    const value_p90 = prices[index_p90];
+
+    //P95 value
+    const index_p95 = Math.floor(prices.length * 0.95);
+    const value_p95 = prices[index_p95];
+
+    //P50 value
+    const index_p50 = Math.floor(prices.length * 0.5);
+    const value_p50 = prices[index_p50];
+
+    //Last released date
+    const dates = Object.values(currentProducts).map(x => x.released);
+    dates.sort((p1, p2) => {
+        var date1 = new Date(p1)
+        var date2 = new Date(p2)
+        return date2 - date1
+    })
+
+    spanNbProducts.innerHTML = count;
+    spanNbNewProducts.innerHTML = new_count;
+    spanP90.innerHTML = value_p90;
+    spanP95.innerHTML = value_p95;
+    spanP50.innerHTML = value_p50;
+    spanLastDate.innerHTML = dates[0];
 };
 
 const render = (products, pagination) => {
   renderProducts(products);
   renderPagination(pagination);
   renderIndicators(pagination);
+  renderBrands();
 };
 
 /**
@@ -138,3 +219,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   setCurrentProducts(products);
   render(currentProducts, currentPagination);
 });
+
+selectPage.addEventListener('change', async (event) => {
+    const products = await fetchProducts(parseInt(event.target.value), currentPagination.pageSize);
+
+
+    setCurrentProducts(products);
+    render(currentProducts, currentPagination);
+});
+
+selectBrand.addEventListener('change', async (event) => {
+    const products = await fetchBrands(currentPagination.currentPage, currentPagination.pageSize, event.target.value);
+
+    setCurrentProducts(products);
+    render(currentProducts, currentPagination);
+});
+
+recentlyReleased.addEventListener('click', async () => {
+    const filteredResult = Object.values(currentProducts).filter(currentProducts => new Date(currentProducts.released) >= fortnight_before);
+    const filteredProducts = { result: filteredResult, meta: currentPagination };
+    setCurrentProducts(filteredProducts);
+    render(currentProducts, currentPagination);
+});
+
+reasonablePrice.addEventListener('click', async () => {
+    const filteredResult = Object.values(currentProducts).filter(currentProducts => currentProducts.price <= 100);
+    const filteredProducts = { result: filteredResult, meta: currentPagination };
+
+
+    setCurrentProducts(filteredProducts);
+    render(currentProducts, currentPagination);
+});
+
+sortProduct.addEventListener('change', async (event) => {
+    if (event.target.value == "price-asc") {
+        const sortedResult = Object.values(currentProducts).sort((p1, p2) => { return p1.price - p2.price })
+        const sortedProducts = { result: sortedResult, meta: currentPagination };
+
+        setCurrentProducts(sortedProducts);
+        render(currentProducts, currentPagination);
+    }
+    if (event.target.value == "price-desc") {
+        const sortedResult = Object.values(currentProducts).sort((p1, p2) => { return p2.price - p1.price })
+        const sortedProducts = { result: sortedResult, meta: currentPagination };
+
+        setCurrentProducts(sortedProducts);
+        render(currentProducts, currentPagination);
+    }
+    if (event.target.value == "date-asc") {
+        const sortedResult = Object.values(currentProducts).sort((p1, p2) => { 
+            var date1 = new Date(p1.released)
+            var date2 = new Date(p2.released)
+            return date1 - date2
+        })
+        const sortedProducts = { result: sortedResult, meta: currentPagination };
+
+        setCurrentProducts(sortedProducts);
+        render(currentProducts, currentPagination);
+    }
+    if (event.target.value == "date-desc") {
+        const sortedResult = Object.values(currentProducts).sort((p1, p2) => {
+            var date1 = new Date(p1.released)
+            var date2 = new Date(p2.released)
+            return date2 - date1
+        })
+        const sortedProducts = { result: sortedResult, meta: currentPagination };
+
+        setCurrentProducts(sortedProducts);
+        render(currentProducts, currentPagination);
+    }
+});
+

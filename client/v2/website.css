@@ -1,0 +1,24 @@
+body {
+    background: rgba(255, 106, 0, 0.5);
+    background-image: url("logo.png");
+    background-repeat: no-repeat;
+    background-position: right top;
+    background-attachment: fixed;
+}
+
+#options {
+    border-left: groove lightblue;
+    border-radius: 5px;
+    border-width: 5px;
+}
+
+#filters > span:nth-of-type(1) {
+    border: solid white;
+    border-width: 4px;
+}
+
+#filters > span:nth-of-type(2) {
+    border: solid white;
+    border-width: 4px;
+}
+
