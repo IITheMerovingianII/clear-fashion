@@ -9,19 +9,22 @@ const cheerio = require('cheerio');
 const parse = data => {
   const $ = cheerio.load(data);
 
-  return $('.productList-container .productList')
+  return $('.product-grid-container .grid__item')
     .map((i, element) => {
       const name = $(element)
-        .find('.productList-title')
+        .find('.full-unstyled-link')
+		.first()
         .text()
         .trim()
         .replace(/\s/g, ' ');
       const price = parseInt(
         $(element)
-          .find('.productList-price')
+          .find('.money')
+		  .first()
           .text()
+		  .replace(/\D/g, '')
       );
-	  const brand = 'dedicated'
+	  const brand = 'Circle Sportswear'
 
       return {name, price,brand};
     })
